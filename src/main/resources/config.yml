@@ -1,19 +1,14 @@
-# Alapértelmezett szorzó
-default-multiplier: 1.0
-
-# Tárgy szorzók
+# Tárgyankénti beállítások
 modifiers:
-  DIAMOND_SWORD: 1.0
-  NETHERITE_SWORD: 1.2
-  HAND: 0.5
+  DIAMOND_SWORD: "2.0"    # Fixen +2 sebzés (1 szív)
+  NETHERITE_SWORD: "25%"  # 25%-kal nagyobb sebzés
+  WOODEN_SWORD: "-50%"    # Felezi a sebzést
+  HAND: "-2.0"            # Levon 2 egységnyit az ütésből
 
-# Poti effektek kontrollálása
+# Poti effektek (szintenként értendő)
 potions:
-  # Mennyi extra szorzót adjon szintenként az Erő poti?
-  # Ha 0.5, akkor:
-  # Strength I: +0.5 (összesen 1.5x sebzés)
-  # Strength II: +1.0 (összesen 2.0x sebzés)
-  STRENGTH_PER_LEVEL: 0.5
+  # Példa: Strength I esetén +1.5 sebzés, Strength II esetén +3.0 sebzés
+  STRENGTH_MODIFIER: "1.5"
   
-  # Gyengeség effekt szorzója (0.5 = felezi a végső sebzést)
-  WEAKNESS_MULTIPLIER: 0.7
+  # Ha inkább százalékot szeretnél (pl. szintenként +10%):
+  # STRENGTH_MODIFIER: "10%"
