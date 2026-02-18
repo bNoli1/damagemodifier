@@ -1,4 +1,4 @@
-package com.pelda.damagemodifier;
+package code.damagemodifier;
 
 import org.bukkit.Material;
 import org.bukkit.command.Command;
