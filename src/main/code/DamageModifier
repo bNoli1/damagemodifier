@@ -21,47 +21,61 @@ public class DamageModifier extends JavaPlugin implements Listener, CommandExecu
         saveDefaultConfig();
         getServer().getPluginManager().registerEvents(this, this);
         getCommand("dm").setExecutor(this);
-        getLogger().info("DamageModifier 1.21.4 (Strength támogatással) betöltve!");
+        getLogger().info("DamageModifier (Hibrid mód) betöltve!");
     }
 
     @EventHandler
     public void onAttack(EntityDamageByEntityEvent event) {
         if (!(event.getDamager() instanceof LivingEntity attacker)) return;
 
-        // 1. Alap szorzó meghatározása a tárgy alapján
-        ItemStack weapon = attacker.getEquipment() != null ? attacker.getEquipment().getItemInMainHand() : null;
-        String materialName = (weapon == null || weapon.getType() == Material.AIR) ? "HAND" : weapon.getType().name();
+        double damage = event.getDamage();
         
-        double multiplier = getConfig().getDouble("modifiers." + materialName, getConfig().getDouble("default-multiplier", 1.0));
+        // 1. Tárgy alapú módosítás
+        ItemStack weapon = attacker.getEquipment() != null ? attacker.getEquipment().getItemInMainHand() : null;
+        String mat = (weapon == null || weapon.getType() == Material.AIR) ? "HAND" : weapon.getType().name();
+        
+        damage = applyModifier(damage, "modifiers." + mat);
 
-        // 2. Erő effekt (STRENGTH) ellenőrzése
+        // 2. Erő effekt (STRENGTH)
         if (attacker.hasPotionEffect(PotionEffectType.STRENGTH)) {
-            PotionEffect strength = attacker.getPotionEffect(PotionEffectType.STRENGTH);
-            if (strength != null) {
-                int level = strength.getAmplifier() + 1; // Az amplifier 0-tól indul (0 = Strength I)
-                double strengthBonus = getConfig().getDouble("potions.STRENGTH_PER_LEVEL", 0.5);
-                multiplier += (level * strengthBonus);
+            PotionEffect effect = attacker.getPotionEffect(PotionEffectType.STRENGTH);
+            if (effect != null) {
+                int level = effect.getAmplifier() + 1;
+                for (int i = 0; i < level; i++) {
+                    damage = applyModifier(damage, "potions.STRENGTH_MODIFIER");
+                }
             }
         }
 
-        // 3. Gyengeség effekt (WEAKNESS) ellenőrzése
-        if (attacker.hasPotionEffect(PotionEffectType.WEAKNESS)) {
-            multiplier *= getConfig().getDouble("potions.WEAKNESS_MULTIPLIER", 0.5);
-        }
+        event.setDamage(damage);
+    }
 
-        // Sebzés alkalmazása
-        event.setDamage(event.getDamage() * multiplier);
+    // Segédfüggvény, ami eldönti, hogy % vagy fix szám
+    private double applyModifier(double currentDamage, String path) {
+        String value = getConfig().getString(path);
+        if (value == null) return currentDamage;
+
+        try {
+            if (value.endsWith("%")) {
+                // Százalékos számítás (pl: "50%")
+                double percent = Double.parseDouble(value.replace("%", "")) / 100.0;
+                return currentDamage * (1.0 + percent);
+            } else {
+                // Fix szám hozzáadása (pl: "2.0")
+                double flat = Double.parseDouble(value);
+                return currentDamage + flat;
+            }
+        } catch (NumberFormatException e) {
+            return currentDamage;
+        }
     }
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         if (args.length > 0 && args[0].equalsIgnoreCase("reload")) {
-            if (!sender.hasPermission("damagemodifier.reload")) {
-                sender.sendMessage("§cNincs ehhez jogosultságod!");
-                return true;
-            }
+            if (!sender.hasPermission("damagemodifier.reload")) return true;
             reloadConfig();
-            sender.sendMessage("§aDamageModifier konfiguráció újratöltve!");
+            sender.sendMessage("§aKonfiguráció frissítve!");
             return true;
         }
         return false;
