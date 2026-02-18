@@ -1,20 +1,18 @@
-package code.damagemodifier;
+package com.pelda.damagemodifier;
 
 import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.LivingEntity;
-import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.potion.PotionEffectType;
+import org.bukkit.potion.PotionEffect;
 import org.jetbrains.annotations.NotNull;
-
-import java.util.HashMap;
-import java.util.Map;
 
 public class DamageModifier extends JavaPlugin implements Listener, CommandExecutor {
 
@@ -22,21 +20,36 @@ public class DamageModifier extends JavaPlugin implements Listener, CommandExecu
     public void onEnable() {
         saveDefaultConfig();
         getServer().getPluginManager().registerEvents(this, this);
-        getCommand("dm").setExecutor(this); // Parancs regisztrálása
-        getLogger().info("DamageModifier 1.21.4 betöltve!");
+        getCommand("dm").setExecutor(this);
+        getLogger().info("DamageModifier 1.21.4 (Strength támogatással) betöltve!");
     }
 
     @EventHandler
     public void onAttack(EntityDamageByEntityEvent event) {
-        // Csak akkor módosítunk, ha a támadó egy élőlény (pl. játékos vagy zombi)
         if (!(event.getDamager() instanceof LivingEntity attacker)) return;
 
+        // 1. Alap szorzó meghatározása a tárgy alapján
         ItemStack weapon = attacker.getEquipment() != null ? attacker.getEquipment().getItemInMainHand() : null;
         String materialName = (weapon == null || weapon.getType() == Material.AIR) ? "HAND" : weapon.getType().name();
-
-        // Kiolvassuk a konfigurációból a specifikus szorzót
+        
         double multiplier = getConfig().getDouble("modifiers." + materialName, getConfig().getDouble("default-multiplier", 1.0));
 
+        // 2. Erő effekt (STRENGTH) ellenőrzése
+        if (attacker.hasPotionEffect(PotionEffectType.STRENGTH)) {
+            PotionEffect strength = attacker.getPotionEffect(PotionEffectType.STRENGTH);
+            if (strength != null) {
+                int level = strength.getAmplifier() + 1; // Az amplifier 0-tól indul (0 = Strength I)
+                double strengthBonus = getConfig().getDouble("potions.STRENGTH_PER_LEVEL", 0.5);
+                multiplier += (level * strengthBonus);
+            }
+        }
+
+        // 3. Gyengeség effekt (WEAKNESS) ellenőrzése
+        if (attacker.hasPotionEffect(PotionEffectType.WEAKNESS)) {
+            multiplier *= getConfig().getDouble("potions.WEAKNESS_MULTIPLIER", 0.5);
+        }
+
+        // Sebzés alkalmazása
         event.setDamage(event.getDamage() * multiplier);
     }
 
