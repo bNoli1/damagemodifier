@@ -1,6 +1,6 @@
 name: DamageModifier
 version: 1.1
-main: code.damagemodifier.DamageModifier
+main: java.code.damagemodifier.DamageModifier
 api-version: '1.21'
 commands:
   dm:
