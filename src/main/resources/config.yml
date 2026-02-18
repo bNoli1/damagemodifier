@@ -1,0 +1,5 @@
+# Alapértelmezett szorzó, ha a tárgy nincs a listában
+default-multiplier: 1.0
+
+modifiers:
+  DIAMOND_AXE: 1.5   
