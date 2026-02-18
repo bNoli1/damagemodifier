@@ -1,5 +1,19 @@
-# Alapértelmezett szorzó, ha a tárgy nincs a listában
+# Alapértelmezett szorzó
 default-multiplier: 1.0
 
+# Tárgy szorzók
 modifiers:
-  DIAMOND_AXE: 1.5   
+  DIAMOND_SWORD: 1.0
+  NETHERITE_SWORD: 1.2
+  HAND: 0.5
+
+# Poti effektek kontrollálása
+potions:
+  # Mennyi extra szorzót adjon szintenként az Erő poti?
+  # Ha 0.5, akkor:
+  # Strength I: +0.5 (összesen 1.5x sebzés)
+  # Strength II: +1.0 (összesen 2.0x sebzés)
+  STRENGTH_PER_LEVEL: 0.5
+  
+  # Gyengeség effekt szorzója (0.5 = felezi a végső sebzést)
+  WEAKNESS_MULTIPLIER: 0.7
