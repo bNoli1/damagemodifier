@@ -1,0 +1,12 @@
+name: DamageModifier
+version: 1.1
+main: code.DamageModifier
+api-version: 1.21
+commands:
+  dm:
+    description: Alap parancs
+    usage: /dm reload
+permissions:
+  damagemodifier.reload:
+    description: Lehetővé teszi a config újratöltését
+    default: op
