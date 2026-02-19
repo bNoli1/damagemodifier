@@ -8,6 +8,7 @@ import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority; // EZ HIÁNYZOTT!
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.inventory.ItemStack;
@@ -27,28 +28,29 @@ public class DamageModifier extends JavaPlugin implements Listener, CommandExecu
     public void onEnable() {
         saveDefaultConfig();
         getServer().getPluginManager().registerEvents(this, this);
-        if (getCommand("dm") != null) getCommand("dm").setExecutor(this);
-        getLogger().info("DamageModifier MINDEN FUNKCIÓVAL betöltve!");
+        if (getCommand("dm") != null) {
+            getCommand("dm").setExecutor(this);
+        }
+        getLogger().info("DamageModifier (Final Version) betöltve!");
     }
 
-@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    // priority = EventPriority.HIGHEST: Utoljára fut le, hogy minden mást felülbírálhasson
+    // ignoreCancelled = true: Ha a Minecraft i-frame miatt törli az eseményt, a plugin nem fut le
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onAttack(EntityDamageByEntityEvent event) {
-        // Ha a sebzés 0 vagy az eseményt már törölték (pl. i-frame miatt), nem csinálunk semmit
         if (event.getDamage() <= 0) return;
-        
         if (!(event.getDamager() instanceof LivingEntity attacker)) return;
         if (!(event.getEntity() instanceof LivingEntity victim)) return;
 
-        // Az eredeti sebzés, amit a Minecraft kalkulált
         double baseDamage = event.getDamage();
         double newDamage = baseDamage;
 
-        // 1. TÁRGY MÓDOSÍTÓ
+        // 1. Tárgy módosító
         ItemStack weapon = attacker.getEquipment() != null ? attacker.getEquipment().getItemInMainHand() : null;
         String matName = (weapon == null || weapon.getType() == Material.AIR) ? "HAND" : weapon.getType().name();
         newDamage = applyModifier(newDamage, "modifiers." + matName);
 
-        // 2. ÉLESSÉG (SHARPNESS)
+        // 2. Élesség (Sharpness)
         if (weapon != null && weapon.hasItemMeta() && weapon.getItemMeta().hasEnchant(Enchantment.SHARPNESS)) {
             int level = weapon.getItemMeta().getEnchantLevel(Enchantment.SHARPNESS);
             String enchantPath = "enchantments.SHARPNESS_" + level;
@@ -61,7 +63,7 @@ public class DamageModifier extends JavaPlugin implements Listener, CommandExecu
             }
         }
 
-        // 3. ERŐ (STRENGTH)
+        // 3. Erő (Strength)
         if (attacker.hasPotionEffect(PotionEffectType.STRENGTH)) {
             PotionEffect effect = attacker.getPotionEffect(PotionEffectType.STRENGTH);
             if (effect != null) {
@@ -77,16 +79,15 @@ public class DamageModifier extends JavaPlugin implements Listener, CommandExecu
             }
         }
 
-        // 4. GLOBÁLIS (OVERALL)
+        // 4. Globális módosító
         newDamage = applyModifier(newDamage, "overall_modifier");
 
-        // Csak akkor állítjuk be, ha tényleg változott valami
         if (newDamage != baseDamage) {
             event.setDamage(newDamage);
         }
 
-        // 5. PÁNCÉL TÖRÉS (Csak ha ténylegesen sebződött a célpont)
-        if (victim instanceof Player player && !event.isCancelled()) {
+        // 5. Páncél törés
+        if (victim instanceof Player player) {
             handleArmorDurability(player);
         }
     }
@@ -95,14 +96,13 @@ public class DamageModifier extends JavaPlugin implements Listener, CommandExecu
         double skipChance = getConfig().getDouble("armor_settings.skip_damage_chance", 0.0) / 100.0;
         int extraLoss = getConfig().getInt("armor_settings.extra_durability_loss", 0);
 
-        for (ItemStack armor : player.getInventory().getArmorContents()) {
+        ItemStack[] armorContents = player.getInventory().getArmorContents();
+        for (ItemStack armor : armorContents) {
             if (armor == null || armor.getType() == Material.AIR) continue;
-            
+
             if (armor.getItemMeta() instanceof Damageable meta) {
-                // Esély a kopás kihagyására (tartósabb páncél)
                 if (skipChance > 0 && random.nextDouble() < skipChance) continue;
 
-                // Extra kopás (gyorsabb amortizáció)
                 if (extraLoss != 0) {
                     meta.setDamage(meta.getDamage() + extraLoss);
                     armor.setItemMeta(meta);
@@ -130,11 +130,11 @@ public class DamageModifier extends JavaPlugin implements Listener, CommandExecu
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         if (args.length > 0 && args[0].equalsIgnoreCase("reload")) {
             if (!sender.hasPermission("damagemodifier.reload")) {
-                sender.sendMessage("§cNincs jogod!");
+                sender.sendMessage("§cNincs jogosultságod!");
                 return true;
             }
             reloadConfig();
-            sender.sendMessage("§a[DamageModifier] Config újratöltve!");
+            sender.sendMessage("§a[DamageModifier] Újratöltve!");
             return true;
         }
         return false;
