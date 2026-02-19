@@ -1,25 +1,23 @@
-# Globális módosító, minden számítás végén fut le
-# "0.0" = nincs változás, "10%" = minden sebzés +10%
+# Globális szorzó (pl: "10%" minden sebzésre rájön, "-1.0" mindenből levon)
 overall_modifier: "0.0"
 
-# Tárgyankénti beállítások
 modifiers:
   DIAMOND_SWORD: "2.0"
   NETHERITE_SWORD: "25%"
   HAND: "-1.0"
 
-# Bűvölések
 enchantments:
-  # Alapértelmezett érték (szintenként adódik hozzá, ha nincs specifikus szint)
-  SHARPNESS: "0.5"
-  # Specifikus szintek (ha ezt megadod, nem az alapot használja)
+  # Alapértelmezett: ennyit ad hozzá szintenként (pl. Sharp 2 = 1.0)
+  SHARPNESS_DEFAULT: "0.5"
+  # Fix érték adott szintre (ha ez megvan, nem a defaultot használja)
   SHARPNESS_5: "5.0"
 
-# Effektusok
 potions:
-  # Alapértelmezett érték szintenként
   STRENGTH_DEFAULT: "1.5"
-  # Specifikus szintek
-  STRENGTH_1: "2.0"
-  STRENGTH_2: "5.0"
-  STRENGTH_3: "100%" # Akár százalékot is adhatsz a 3-as szintnek
+  STRENGTH_2: "4.0"
+
+armor_settings:
+  # 0-100 között. Hány százalék eséllyel NE kopjon a páncél ütéskor?
+  skip_damage_chance: 25.0
+  # Mennyi extra durabilityt vonjon le pluszban? (0 = alap)
+  extra_durability_loss: 0
