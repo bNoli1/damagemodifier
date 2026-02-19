@@ -8,7 +8,7 @@ import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
-import org.bukkit.event.EventPriority; // EZ HIÁNYZOTT!
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.inventory.ItemStack;
@@ -18,11 +18,14 @@ import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.HashMap;
 import java.util.Random;
+import java.util.UUID;
 
 public class DamageModifier extends JavaPlugin implements Listener, CommandExecutor {
 
     private final Random random = new Random();
+    private final HashMap<UUID, Long> lastHitMap = new HashMap<>();
 
     @Override
     public void onEnable() {
@@ -31,26 +34,45 @@ public class DamageModifier extends JavaPlugin implements Listener, CommandExecu
         if (getCommand("dm") != null) {
             getCommand("dm").setExecutor(this);
         }
-        getLogger().info("DamageModifier (Final Version) betöltve!");
+        getLogger().info("DamageModifier Pro (Legacy CPS védelemmel) betöltve!");
     }
 
-    // priority = EventPriority.HIGHEST: Utoljára fut le, hogy minden mást felülbírálhasson
-    // ignoreCancelled = true: Ha a Minecraft i-frame miatt törli az eseményt, a plugin nem fut le
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onAttack(EntityDamageByEntityEvent event) {
         if (event.getDamage() <= 0) return;
-        if (!(event.getDamager() instanceof LivingEntity attacker)) return;
+        if (!(event.getDamager() instanceof Player attacker)) return;
         if (!(event.getEntity() instanceof LivingEntity victim)) return;
 
         double baseDamage = event.getDamage();
+        long currentTime = System.currentTimeMillis();
+        long cooldownMs = getConfig().getLong("hit_cooldown_ms", 500);
+
+        // CPS ELLENŐRZÉS (Belső időzítő)
+        boolean isFastClick = false;
+        if (lastHitMap.containsKey(attacker.getUniqueId())) {
+            long lastHit = lastHitMap.get(attacker.getUniqueId());
+            if (currentTime - lastHit < cooldownMs) {
+                isFastClick = true;
+            }
+        }
+
+        // Frissítjük az utolsó ütés idejét CSAK akkor, ha nem volt "érvénytelen" gyors kattintás, 
+        // vagy hagyd így, ha minden kattintás újraindítja a várakozást (szigorúbb).
+        lastHitMap.put(attacker.getUniqueId(), currentTime);
+
+        // Ha túl gyors a kattintás, a plugin nem ad bónuszokat, marad az alap sebzés
+        if (isFastClick) {
+            return; 
+        }
+
         double newDamage = baseDamage;
 
-        // 1. Tárgy módosító
-        ItemStack weapon = attacker.getEquipment() != null ? attacker.getEquipment().getItemInMainHand() : null;
+        // 1. TÁRGY MÓDOSÍTÓ
+        ItemStack weapon = attacker.getInventory().getItemInMainHand();
         String matName = (weapon == null || weapon.getType() == Material.AIR) ? "HAND" : weapon.getType().name();
         newDamage = applyModifier(newDamage, "modifiers." + matName);
 
-        // 2. Élesség (Sharpness)
+        // 2. ÉLESSÉG (SHARPNESS)
         if (weapon != null && weapon.hasItemMeta() && weapon.getItemMeta().hasEnchant(Enchantment.SHARPNESS)) {
             int level = weapon.getItemMeta().getEnchantLevel(Enchantment.SHARPNESS);
             String enchantPath = "enchantments.SHARPNESS_" + level;
@@ -63,7 +85,7 @@ public class DamageModifier extends JavaPlugin implements Listener, CommandExecu
             }
         }
 
-        // 3. Erő (Strength)
+        // 3. ERŐ (STRENGTH)
         if (attacker.hasPotionEffect(PotionEffectType.STRENGTH)) {
             PotionEffect effect = attacker.getPotionEffect(PotionEffectType.STRENGTH);
             if (effect != null) {
@@ -79,14 +101,13 @@ public class DamageModifier extends JavaPlugin implements Listener, CommandExecu
             }
         }
 
-        // 4. Globális módosító
+        // 4. GLOBÁLIS (OVERALL) MÓDOSÍTÓ
         newDamage = applyModifier(newDamage, "overall_modifier");
 
-        if (newDamage != baseDamage) {
-            event.setDamage(newDamage);
-        }
+        // Sebzés beállítása
+        event.setDamage(newDamage);
 
-        // 5. Páncél törés
+        // 5. PÁNCÉL TÖRÉS KEZELÉSE
         if (victim instanceof Player player) {
             handleArmorDurability(player);
         }
@@ -134,7 +155,7 @@ public class DamageModifier extends JavaPlugin implements Listener, CommandExecu
                 return true;
             }
             reloadConfig();
-            sender.sendMessage("§a[DamageModifier] Újratöltve!");
+            sender.sendMessage("§a[DamageModifier] Konfiguráció újratöltve!");
             return true;
         }
         return false;
