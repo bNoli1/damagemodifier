@@ -5,6 +5,26 @@ hit_cooldown_ms: 500
 # Globális szorzó (pl: "10%" minden sebzésre rájön, "-1.0" mindenből levon)
 overall_modifier: "0.0"
 
+# Aranyalma effektek (Időtartam tickben: 20 tick = 1 mp)
+enchanted_apple_effects:
+  REGENERATION:
+    duration_ticks: 400
+    amplifier: 1
+  RESISTANCE:
+    duration_ticks: 6000
+    amplifier: 0
+  ABSORPTION:
+    duration_ticks: 2400
+    amplifier: 3
+
+golden_apple_effects:
+  REGENERATION:
+    duration_ticks: 100
+    amplifier: 1
+  ABSORPTION:
+    duration_ticks: 2400
+    amplifier: 0
+
 modifiers:
   DIAMOND_SWORD: "2.0"
   NETHERITE_SWORD: "25%"
