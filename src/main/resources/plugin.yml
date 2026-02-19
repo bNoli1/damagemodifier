@@ -4,9 +4,9 @@ main: code.damagemodifier.DamageModifier
 api-version: '1.21'
 commands:
   dm:
-    description: DamageModifier reload command
+    description: DamageModifier parancsok
     usage: /dm reload
 permissions:
   damagemodifier.reload:
-    description: Allows reloading the config
+    description: Lehetővé teszi a config újratöltését
     default: op
