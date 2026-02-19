@@ -10,72 +10,95 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.potion.PotionEffectType;
 import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import org.jetbrains.annotations.NotNull;
 
 public class DamageModifier extends JavaPlugin implements Listener, CommandExecutor {
 
     @Override
     public void onEnable() {
+        // Alapértelmezett config létrehozása, ha nem létezik
         saveDefaultConfig();
+        
+        // Események és parancs regisztrálása
         getServer().getPluginManager().registerEvents(this, this);
-        getCommand("dm").setExecutor(this);
-        getLogger().info("DamageModifier (Hibrid mód) betöltve!");
+        if (getCommand("dm") != null) {
+            getCommand("dm").setExecutor(this);
+        }
+        
+        getLogger().info("DamageModifier sikeresen betöltve!");
     }
 
     @EventHandler
     public void onAttack(EntityDamageByEntityEvent event) {
+        // Csak akkor foglalkozunk vele, ha egy élőlény sebez
         if (!(event.getDamager() instanceof LivingEntity attacker)) return;
 
-        double damage = event.getDamage();
-        
-        // 1. Tárgy alapú módosítás
-        ItemStack weapon = attacker.getEquipment() != null ? attacker.getEquipment().getItemInMainHand() : null;
-        String mat = (weapon == null || weapon.getType() == Material.AIR) ? "HAND" : weapon.getType().name();
-        
-        damage = applyModifier(damage, "modifiers." + mat);
+        double originalDamage = event.getDamage();
+        double currentDamage = originalDamage;
 
-        // 2. Erő effekt (STRENGTH)
+        // 1. Fegyver/Tárgy alapú módosítás
+        ItemStack weapon = (attacker.getEquipment() != null) ? attacker.getEquipment().getItemInMainHand() : null;
+        String matName = (weapon == null || weapon.getType() == Material.AIR) ? "HAND" : weapon.getType().name();
+        
+        currentDamage = applyModifier(currentDamage, "modifiers." + matName);
+
+        // 2. Strength (Erő) effekt alapú módosítás
         if (attacker.hasPotionEffect(PotionEffectType.STRENGTH)) {
             PotionEffect effect = attacker.getPotionEffect(PotionEffectType.STRENGTH);
             if (effect != null) {
+                // A szint 0-tól indul, így +1 kell (Strength I = level 1)
                 int level = effect.getAmplifier() + 1;
                 for (int i = 0; i < level; i++) {
-                    damage = applyModifier(damage, "potions.STRENGTH_MODIFIER");
+                    currentDamage = applyModifier(currentDamage, "potions.STRENGTH_MODIFIER");
                 }
             }
         }
 
-        event.setDamage(damage);
+        // Csak akkor módosítunk, ha tényleg változott az érték
+        if (currentDamage != originalDamage) {
+            event.setDamage(currentDamage);
+            // Debug üzenet a konzolba (opcionális, kikapcsolható)
+            // getLogger().info("Sebzés módosítva: " + originalDamage + " -> " + currentDamage);
+        }
     }
 
-    // Segédfüggvény, ami eldönti, hogy % vagy fix szám
-    private double applyModifier(double currentDamage, String path) {
+    private double applyModifier(double damage, String path) {
+        // Megnézzük, létezik-e az útvonal a configban
+        if (!getConfig().contains(path)) return damage;
+        
         String value = getConfig().getString(path);
-        if (value == null) return currentDamage;
+        if (value == null) return damage;
+        
+        // Szóközök eltávolítása a biztonság kedvéért
+        value = value.trim();
 
         try {
             if (value.endsWith("%")) {
-                // Százalékos számítás (pl: "50%")
+                // Százalékos számítás: pl. "25%" -> 1.25-ös szorzó
                 double percent = Double.parseDouble(value.replace("%", "")) / 100.0;
-                return currentDamage * (1.0 + percent);
+                return damage * (1.0 + percent);
             } else {
-                // Fix szám hozzáadása (pl: "2.0")
+                // Fix szám hozzáadása: pl. "2.0"
                 double flat = Double.parseDouble(value);
-                return currentDamage + flat;
+                return damage + flat;
             }
         } catch (NumberFormatException e) {
-            return currentDamage;
+            getLogger().warning("Hibás formátum a configban (" + path + "): " + value);
+            return damage;
         }
     }
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         if (args.length > 0 && args[0].equalsIgnoreCase("reload")) {
-            if (!sender.hasPermission("damagemodifier.reload")) return true;
+            if (!sender.hasPermission("damagemodifier.reload")) {
+                sender.sendMessage("§cNincs jogosultságod ehhez!");
+                return true;
+            }
             reloadConfig();
-            sender.sendMessage("§aKonfiguráció frissítve!");
+            sender.sendMessage("§a[DamageModifier] Konfiguráció újratöltve!");
             return true;
         }
         return false;
