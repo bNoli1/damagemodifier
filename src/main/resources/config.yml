@@ -1,14 +1,12 @@
-# Tárgyankénti beállítások
+# Tárgyankénti beállítások (Anyag neve: "érték")
+# Ha negatív számot adsz meg, az csökkenti a sebzést.
 modifiers:
-  DIAMOND_SWORD: "2.0"    # Fixen +2 sebzés (1 szív)
-  NETHERITE_SWORD: "25%"  # 25%-kal nagyobb sebzés
-  WOODEN_SWORD: "-50%"    # Felezi a sebzést
-  HAND: "-2.0"            # Levon 2 egységnyit az ütésből
+  DIAMOND_SWORD: "2.0"
+  NETHERITE_SWORD: "25%"
+  WOODEN_SWORD: "-50%"
+  HAND: "-1.0"
 
-# Poti effektek (szintenként értendő)
+# Poti effektek (szintenként értendő módosítás)
 potions:
-  # Példa: Strength I esetén +1.5 sebzés, Strength II esetén +3.0 sebzés
+  # Ha Strength II van rajtad, ez kétszer adódik hozzá
   STRENGTH_MODIFIER: "1.5"
-  
-  # Ha inkább százalékot szeretnél (pl. szintenként +10%):
-  # STRENGTH_MODIFIER: "10%"
