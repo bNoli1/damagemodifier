@@ -31,55 +31,62 @@ public class DamageModifier extends JavaPlugin implements Listener, CommandExecu
         getLogger().info("DamageModifier MINDEN FUNKCIÓVAL betöltve!");
     }
 
-    @EventHandler
+@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onAttack(EntityDamageByEntityEvent event) {
+        // Ha a sebzés 0 vagy az eseményt már törölték (pl. i-frame miatt), nem csinálunk semmit
+        if (event.getDamage() <= 0) return;
+        
         if (!(event.getDamager() instanceof LivingEntity attacker)) return;
         if (!(event.getEntity() instanceof LivingEntity victim)) return;
 
-        double damage = event.getDamage();
+        // Az eredeti sebzés, amit a Minecraft kalkulált
+        double baseDamage = event.getDamage();
+        double newDamage = baseDamage;
 
         // 1. TÁRGY MÓDOSÍTÓ
         ItemStack weapon = attacker.getEquipment() != null ? attacker.getEquipment().getItemInMainHand() : null;
         String matName = (weapon == null || weapon.getType() == Material.AIR) ? "HAND" : weapon.getType().name();
-        damage = applyModifier(damage, "modifiers." + matName);
+        newDamage = applyModifier(newDamage, "modifiers." + matName);
 
-        // 2. ÉLESSÉG (SHARPNESS) MÓDOSÍTÓ
+        // 2. ÉLESSÉG (SHARPNESS)
         if (weapon != null && weapon.hasItemMeta() && weapon.getItemMeta().hasEnchant(Enchantment.SHARPNESS)) {
             int level = weapon.getItemMeta().getEnchantLevel(Enchantment.SHARPNESS);
             String enchantPath = "enchantments.SHARPNESS_" + level;
             if (getConfig().contains(enchantPath)) {
-                damage = applyModifier(damage, enchantPath);
+                newDamage = applyModifier(newDamage, enchantPath);
             } else {
                 for (int i = 0; i < level; i++) {
-                    damage = applyModifier(damage, "enchantments.SHARPNESS_DEFAULT");
+                    newDamage = applyModifier(newDamage, "enchantments.SHARPNESS_DEFAULT");
                 }
             }
         }
 
-        // 3. ERŐ (STRENGTH) MÓDOSÍTÓ
+        // 3. ERŐ (STRENGTH)
         if (attacker.hasPotionEffect(PotionEffectType.STRENGTH)) {
             PotionEffect effect = attacker.getPotionEffect(PotionEffectType.STRENGTH);
             if (effect != null) {
                 int level = effect.getAmplifier() + 1;
                 String potionPath = "potions.STRENGTH_" + level;
                 if (getConfig().contains(potionPath)) {
-                    damage = applyModifier(damage, potionPath);
+                    newDamage = applyModifier(newDamage, potionPath);
                 } else {
                     for (int i = 0; i < level; i++) {
-                        damage = applyModifier(damage, "potions.STRENGTH_DEFAULT");
+                        newDamage = applyModifier(newDamage, "potions.STRENGTH_DEFAULT");
                     }
                 }
             }
         }
 
-        // 4. GLOBÁLIS (OVERALL) MÓDOSÍTÓ
-        damage = applyModifier(damage, "overall_modifier");
+        // 4. GLOBÁLIS (OVERALL)
+        newDamage = applyModifier(newDamage, "overall_modifier");
 
-        // Sebzés véglegesítése
-        event.setDamage(damage);
+        // Csak akkor állítjuk be, ha tényleg változott valami
+        if (newDamage != baseDamage) {
+            event.setDamage(newDamage);
+        }
 
-        // 5. PÁNCÉL TÖRÉS VEZÉRLÉSE
-        if (victim instanceof Player player) {
+        // 5. PÁNCÉL TÖRÉS (Csak ha ténylegesen sebződött a célpont)
+        if (victim instanceof Player player && !event.isCancelled()) {
             handleArmorDurability(player);
         }
     }
