@@ -4,6 +4,7 @@ import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -18,87 +19,86 @@ public class DamageModifier extends JavaPlugin implements Listener, CommandExecu
 
     @Override
     public void onEnable() {
-        // Alapértelmezett config létrehozása, ha nem létezik
         saveDefaultConfig();
-        
-        // Események és parancs regisztrálása
         getServer().getPluginManager().registerEvents(this, this);
-        if (getCommand("dm") != null) {
-            getCommand("dm").setExecutor(this);
-        }
-        
-        getLogger().info("DamageModifier sikeresen betöltve!");
+        if (getCommand("dm") != null) getCommand("dm").setExecutor(this);
+        getLogger().info("DamageModifier Pro betöltve!");
     }
 
     @EventHandler
     public void onAttack(EntityDamageByEntityEvent event) {
-        // Csak akkor foglalkozunk vele, ha egy élőlény sebez
         if (!(event.getDamager() instanceof LivingEntity attacker)) return;
 
-        double originalDamage = event.getDamage();
-        double currentDamage = originalDamage;
+        double damage = event.getDamage();
 
-        // 1. Fegyver/Tárgy alapú módosítás
-        ItemStack weapon = (attacker.getEquipment() != null) ? attacker.getEquipment().getItemInMainHand() : null;
+        // 1. Tárgy alapú módosítás
+        ItemStack weapon = attacker.getEquipment() != null ? attacker.getEquipment().getItemInMainHand() : null;
         String matName = (weapon == null || weapon.getType() == Material.AIR) ? "HAND" : weapon.getType().name();
-        
-        currentDamage = applyModifier(currentDamage, "modifiers." + matName);
+        damage = applyModifier(damage, "modifiers." + matName);
 
-        // 2. Strength (Erő) effekt alapú módosítás
-        if (attacker.hasPotionEffect(PotionEffectType.STRENGTH)) {
-            PotionEffect effect = attacker.getPotionEffect(PotionEffectType.STRENGTH);
-            if (effect != null) {
-                // A szint 0-tól indul, így +1 kell (Strength I = level 1)
-                int level = effect.getAmplifier() + 1;
-                for (int i = 0; i < level; i++) {
-                    currentDamage = applyModifier(currentDamage, "potions.STRENGTH_MODIFIER");
+        // 2. Élesség (Sharpness) bűvölés
+        if (weapon != null && weapon.hasItemMeta() && weapon.getItemMeta().hasEnchant(Enchantment.SHARPNESS)) {
+            int enchantLevel = weapon.getItemMeta().getEnchantLevel(Enchantment.SHARPNESS);
+            // Keresünk specifikus szintet (pl. SHARPNESS_3), ha nincs, az alap SHARPNESS-t használjuk
+            String enchantPath = "enchantments.SHARPNESS_" + enchantLevel;
+            if (getConfig().contains(enchantPath)) {
+                damage = applyModifier(damage, enchantPath);
+            } else {
+                for (int i = 0; i < enchantLevel; i++) {
+                    damage = applyModifier(damage, "enchantments.SHARPNESS");
                 }
             }
         }
 
-        // Csak akkor módosítunk, ha tényleg változott az érték
-        if (currentDamage != originalDamage) {
-            event.setDamage(currentDamage);
-            // Debug üzenet a konzolba (opcionális, kikapcsolható)
-            // getLogger().info("Sebzés módosítva: " + originalDamage + " -> " + currentDamage);
+        // 3. Potion effektek (Specifikus szint vagy alap)
+        if (attacker.hasPotionEffect(PotionEffectType.STRENGTH)) {
+            PotionEffect effect = attacker.getPotionEffect(PotionEffectType.STRENGTH);
+            if (effect != null) {
+                int level = effect.getAmplifier() + 1;
+                String potionPath = "potions.STRENGTH_" + level;
+                
+                if (getConfig().contains(potionPath)) {
+                    // Ha van külön beállítás a szinthez (pl. STRENGTH_2)
+                    damage = applyModifier(damage, potionPath);
+                } else {
+                    // Ha nincs, akkor az alapértelmezett értéket szorozzuk a szinttel
+                    for (int i = 0; i < level; i++) {
+                        damage = applyModifier(damage, "potions.STRENGTH_DEFAULT");
+                    }
+                }
+            }
         }
+
+        // 4. Globális (Overall) módosító
+        damage = applyModifier(damage, "overall_modifier");
+
+        event.setDamage(damage);
     }
 
-    private double applyModifier(double damage, String path) {
-        // Megnézzük, létezik-e az útvonal a configban
-        if (!getConfig().contains(path)) return damage;
-        
+    private double applyModifier(double currentDamage, String path) {
         String value = getConfig().getString(path);
-        if (value == null) return damage;
-        
-        // Szóközök eltávolítása a biztonság kedvéért
+        if (value == null) return currentDamage;
         value = value.trim();
 
         try {
             if (value.endsWith("%")) {
-                // Százalékos számítás: pl. "25%" -> 1.25-ös szorzó
                 double percent = Double.parseDouble(value.replace("%", "")) / 100.0;
-                return damage * (1.0 + percent);
+                return currentDamage * (1.0 + percent);
             } else {
-                // Fix szám hozzáadása: pl. "2.0"
                 double flat = Double.parseDouble(value);
-                return damage + flat;
+                return currentDamage + flat;
             }
         } catch (NumberFormatException e) {
-            getLogger().warning("Hibás formátum a configban (" + path + "): " + value);
-            return damage;
+            return currentDamage;
         }
     }
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         if (args.length > 0 && args[0].equalsIgnoreCase("reload")) {
-            if (!sender.hasPermission("damagemodifier.reload")) {
-                sender.sendMessage("§cNincs jogosultságod ehhez!");
-                return true;
-            }
+            if (!sender.hasPermission("damagemodifier.reload")) return true;
             reloadConfig();
-            sender.sendMessage("§a[DamageModifier] Konfiguráció újratöltve!");
+            sender.sendMessage("§a[DamageModifier] Újratöltve!");
             return true;
         }
         return false;
