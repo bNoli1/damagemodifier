@@ -1,3 +1,7 @@
+# Mennyi idő teljen el két "bónuszos" ütés között (ezredmásodpercben)
+# 500ms = 0.5 másodperc. Ha ennél gyorsabban kattintanak, nincs plusz sebzés.
+hit_cooldown_ms: 500
+
 # Globális szorzó (pl: "10%" minden sebzésre rájön, "-1.0" mindenből levon)
 overall_modifier: "0.0"
 
